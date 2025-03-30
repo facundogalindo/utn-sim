@@ -81,6 +81,7 @@ class AplicacionSimulacion:
 
     def generar_numeros(self):
         print('generar_numeros()')
+        self.datos_generados = []
         try:
             tamano_muestra = int(self.entrada_muestra.get())
             if tamano_muestra > 1000000:
@@ -123,11 +124,11 @@ class AplicacionSimulacion:
     def generar_distribucion_normal(self, tamano_muestra):
         media = float(self.entrada_media.get())
         desviacion = float(self.entrada_desviacion.get())
-        intervalo =  int(self.combo_intervalos.get())
+        # intervalo =  int(self.combo_intervalos.get())
 
         for i in range(tamano_muestra):
-            r1 = generador_congruente(1, 50, i)
-            r2 = generador_congruente(1, 50, i)
+            r1 = generador_congruente(1, 13, i)
+            r2 = generador_congruente(1, 17, i)
             x = distribucion_normal(media, desviacion, r1, r2)
             self.datos_generados.append(x)
 
