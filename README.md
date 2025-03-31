@@ -4,4 +4,6 @@
 ### en windows : python3 -c "import tkinter"
 ### en linux : sudo apt update
 ### sudo apt install python3-tk
+### si se encuentran con el error de que falta numpy entonces correr este comando: pip3 install numpy
+
  
