@@ -10,89 +10,115 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import re
 
-datos_pdf = []
 
+
+def validar_enteros_flotantes(texto):
+    texto = texto.replace(',', '.')  # permite coma como separador decimal
+    pattern = r'^[+-]?(\d+(\.\d*)?|\.\d+)$'
+    return bool(re.match(pattern, texto))
+
+#Permite valores positivos , negativos y con decimales separados por punto ( ejemplo: 1.2)
+def validar_parametro(texto):
+    # Permitir campo vacío
+    if texto == "":
+        return True
+
+    # Permitir solo el signo como entrada válida
+    if texto == '-':
+        return True
+    #pattern = r'^-?(\d+(\.\d*)?|\.\d+)$'
+    pattern = r'^-?(?:\d+(?:\.\d+)?|\.\d+)$'
+    return bool(re.match(pattern, texto))
+
+
+def validar_naturales_flotantes(texto):
+    texto = texto.replace(',', '.')  # permite coma como separador decimal
+    pattern = r'^[+-]?(\d+(\.\d*)?|\.\d+)$'
+    return bool(re.fullmatch(pattern, texto))
 
 def validar_naturales(text):
-    # Esta función permite solo la entrada de números (naturales o flotantes)
-    return re.match(r'-?\d+\.?\d*', text) is not None
+    # Esta función permite solo la entrada de números (enteros)
+    pattern = r'^[0-9]*$'
+    return re.match(pattern, text) is not None
 
-def validar_enteros_flotantes(text):
-    # Esta función permite solo la entrada de números (enteros o flotantes)
-    return re.match(r'^[0-9]*\.?[0-9]*$', text) is not None
-
-def uniforme(a:int, b:int, rnd:float)->float:
+# Sub Métodos para generar los aleatorios de cada una de la distribuciones
+def uniforme(a:int, b:int, rnd:float) -> float:
     return round(a + rnd * (b-a), 4)
 
-def exponencial(lamb:float, rnd:float)->float:
+def exponencial(lamb:float, rnd:float) -> float:
     return round((-1 / lamb) * math.log(1 - rnd), 4)
 
 def normal_convolucion(k:int, media:float, desv:float)->float:
     x = 0
-    for i in range(k):
+    for _ in range(k):
         x += random.random()
     return round((((x - k/2) / math.sqrt(k/12)) * desv + media), 4)
 
-
-def generar_numeros_aleatorios(n, exp=False, media=0, desv=1):
+# Método para generar los aletorios rnd [0,1]
+def generar_numeros_aleatorios(n: int) -> list:
     numeros_aleatorios = []
     for _ in range(n):
-        if exp:
-            numero = normal_convolucion(12, media, desv)
-        else:
-            numero = random.random()
-        #numero = random.uniform(0, 1)
+        numero = random.random()
         numeros_aleatorios.append(numero)
-
-    #print("rnd", numeros_aleatorios)
     return numeros_aleatorios
 
 #Esta función se encarga de generar la distribución de acuerdo a los parámetros ingresados por el usuario.
-def generar_distribucion(): 
-    distribucion = combo_distribucion.get() #Busca el dato seleccionado en el combo (Uniforme, exponenecial, normal)
-    tamaño_muestra = int(entry_tamaño_muestra.get()) #Busca el dato tamaño de muestra solicitado y devuelve un entero
-    intervalos = int(combo_intervalos.get()) #Busca el dato cantidad de intervalos solicitado yb devuelve un entero
-    global datos_pdf
-    if tamaño_muestra > 0 and tamaño_muestra <= 1000000:
+def generar_distribucion():
+    if entry_tamaño_muestra.get() != "" and int(entry_tamaño_muestra.get()) > 0 and int(entry_tamaño_muestra.get()) <= 1000000:
+        datos = []
+        distribucion = combo_distribucion.get() #Busca el dato seleccionado en el combo (Uniforme, exponenecial, normal)
+        tamaño_muestra = int(entry_tamaño_muestra.get())  #Busca el dato tamaño de muestra solicitado y devuelve un entero
+        intervalos = int(combo_intervalos.get()) #Busca el dato cantidad de intervalos solicitado yb devuelve un entero
+    
+        genera_distribucion = False
         if distribucion == "Uniforme":
-            rnd = generar_numeros_aleatorios(tamaño_muestra)
-            a = float(entry_a.get()) # Obtiene el valor ingresado por el usuario en un widget de entrada y lo combierte a float
-            b = float(entry_b.get())
+            if (entry_a.get() and entry_b.get()) != "" and (entry_a.get() and entry_b.get() != "-"):
 
-            datos = []
+                aleatorios = generar_numeros_aleatorios(tamaño_muestra)
 
-            for i in rnd:
-                x = uniforme(a, b, i)
-                datos.append(x)
-            print("uniforme", datos)
+                a = float(entry_a.get()) 
+                b = float(entry_b.get())
+                
+                
+                if a < b:
+                    for rnd in aleatorios:
+                        x = uniforme(a, b, rnd)
+                        datos.append(x)
+                    genera_distribucion = True
+                else:
+                    messagebox.showinfo(title="Parámetros dist. uniforme", message="El parametro A debe ser menor al parametro B")
 
+            else:
+                messagebox.showinfo(title="Parámetros dist. uniforme", message="Debe ingresar valores en los parámetros de la distribución")
         elif distribucion == "Exponencial":
-            rnd = generar_numeros_aleatorios(tamaño_muestra)
-            datos = []
-
-            λ = float(entry_λ.get())
-
-            for i in rnd:
-                x = exponencial(λ, i)
-                datos.append(x)
-            print("EXPONENCIAL", datos)
-
+            if entry_λ.get() != "":
+                aleatorios = generar_numeros_aleatorios(tamaño_muestra)
+                λ = float(entry_λ.get())
+                if λ > 0:
+                    for rnd in aleatorios:
+                        x = exponencial(λ, rnd)
+                        datos.append(x)
+                    genera_distribucion = True
+                else:
+                    messagebox.showinfo(title="Parámetros dist. exponencial", message="El parametro λ debe ser mayor a 0")
+                    
+            else:
+                messagebox.showinfo(title="Parámetros dist. exponencial", message="Debe ingresar valores en los parámetros de la distribución")
         elif distribucion == "Normal":
+            if (entry_μ.get() and entry_σ.get()) != "":
+                μ = float(entry_μ.get())
+                σ = float(entry_σ.get())
 
-            #rnd1 = generar_numeros_aleatorios(tamaño_muestra)
-            #rnd2 = generar_numeros_aleatorios(tamaño_muestra)
-
-            datos = []
-
-            μ = float(entry_μ.get())
-            σ = float(entry_σ.get())
-            datos = generar_numeros_aleatorios(tamaño_muestra, True, μ, σ)
-
-            print("NORMAL", datos)
-            datos_pdf = datos
-        histograma_frecuencias(datos, intervalos)
+                for _ in range(tamaño_muestra):
+                    x = normal_convolucion(12, μ, σ)
+                    datos.append(x)
+                genera_distribucion = True
+            else:
+                messagebox.showinfo(title="Parámetros dist. Normal", message="Debe ingresar valores en los parámetros de la distribución")
+        if genera_distribucion:
+            histograma_frecuencias(datos, intervalos)
     else:
-        messagebox.showinfo(title="Tamaño de muestra", message="Debe ingresar un tamaño de muestra mayor a 0 y menor a 1000000")
+        messagebox.showinfo(title="Tamaño de muestra", message="Debe ingresar un tamaño de muestra entre 1 y 1,000,000")
 
 def histograma_frecuencias(datos, intervalos): # Define una función llamada histograma_frecuencias que calcula el histograma de frecuencias de los datos generados y muestra tanto el histograma como la tabla de frecuencias en una nueva ventana.
     mostrar_datos(datos)
@@ -138,36 +164,6 @@ def mostrar_datos(datos):
 # Deshabilitar la edición del widget Text
     txt_datos.config(state=tk.DISABLED)
 
-# Botón para guardar los datos en un archivo
-    btn_guardar = tk.Button(ventana_datos, text="Guardar", command=lambda: guardar_datos(datos))
-    btn_guardar.pack()
-
-#Define una función llamada guardar_datos que permite al usuario guardar las variables generadas en un archivo.
-def guardar_datos(datos): 
-    archivo_datos = tkinter.filedialog.asksaveasfile(mode='w', defaultextension=".txt")
-    if archivo_datos is None:
-        return
-    for dato in datos:
-        archivo_datos.write(f"{dato}\n")
-    archivo_datos.close()
-
-def guardar_datos_pdf(datos):
-    archivo_pdf = tkinter.filedialog.asksaveasfile(mode='w', defaultextension=".pdf")
-    if archivo_pdf is None:
-        return
-
-    c = canvas.Canvas(archivo_pdf.name, pagesize=letter)
-    c.drawString(100, 750, "Valores Generados:")
-    y = 730
-    for dato in datos:
-        c.drawString(100, y, str(dato))
-        y -= 15
-
-    c.save()
-    archivo_pdf.close()
-    messagebox.showinfo("Guardado", "Los datos se han guardado en formato PDF correctamente.")
-
-# Desabilita los campos de valores dependiendo que distribucion elija
 def actualizar_campos(*args):
     distribucion = combo_distribucion.get()
 
@@ -188,34 +184,47 @@ def actualizar_campos(*args):
 
 # Crear ventana principal
 ventana = tk.Tk()
+ventana.geometry('500x500')
+ventana.update_idletasks()
 ventana.title("Generador de Distribuciones")
 
 # Definir la función de validación para numeros positivos
 validar_enteros_flotantes = ventana.register(validar_enteros_flotantes)
 
 # Definir la funcion de validación para numeros positivos y negativos
+validar_naturales_flotantes = ventana.register(validar_naturales_flotantes)
+
+# Definir la funcion de validación para numeros enteros
 validar_naturales = ventana.register(validar_naturales)
+
+# Definir la funcion de validación para numeros negativos de mu
+validar_parametro = ventana.register(validar_parametro)
 
 # Crear widgets
 lbl_tamaño_muestra = tk.Label(ventana, text="Tamaño de muestra:")
-entry_tamaño_muestra = tk.Entry(ventana, validate="key", validatecommand=(validar_enteros_flotantes, '%S'))
+entry_tamaño_muestra = tk.Entry(ventana, validate="key", validatecommand=(validar_naturales, '%S'))
 
 lbl_intervalos = tk.Label(ventana, text="Número de intervalos:")
-combo_intervalos = ttk.Combobox(ventana, values=[5, 10, 15], validate="key", validatecommand=(validar_naturales, '%S'))
+combo_intervalos = ttk.Combobox(ventana, values=[10, 15, 20,30], validate="key", validatecommand=(validar_naturales, '%S'), state="readonly")
+#Seteo valor por defecto al combo 
+combo_intervalos.set(10)
 
 lbl_distribucion = tk.Label(ventana, text="Distribución:")
-combo_distribucion = ttk.Combobox(ventana, values=["Uniforme", "Exponencial", "Normal"], state="readonly")
+combo_distribucion = ttk.Combobox(ventana, validate="key", values=["Uniforme", "Exponencial", "Normal"], state=["readonly"])
+#Seteo valor por defecto al combo 
+combo_distribucion.set("Uniforme")
+
 
 lbl_a = tk.Label(ventana, text="Valor de a:")
-entry_a = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_naturales, '%S'))
+entry_a = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_parametro, '%P'))
 lbl_b = tk.Label(ventana, text="Valor de b:")
-entry_b = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_naturales, '%S'))
+entry_b = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_parametro, '%P'))
 
 lbl_λ = tk.Label(ventana, text="Valor de λ:")
-entry_λ = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_naturales, '%S'))
+entry_λ = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_enteros_flotantes, '%S'))
 
 lbl_μ = tk.Label(ventana, text="Valor de μ:")
-entry_μ = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_naturales, '%S'))
+entry_μ = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_parametro, '%P'))
 lbl_σ = tk.Label(ventana, text="Valor de σ:")
 entry_σ = tk.Entry(ventana, state="disabled", validate="key", validatecommand=(validar_enteros_flotantes, '%S'))
 
@@ -246,13 +255,10 @@ lbl_σ.grid(row=7, column=0, padx=5, pady=5)
 entry_σ.grid(row=7, column=1, padx=5, pady=5)
 
 # Botones
-btn_generar.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+btn_generar.grid(row=8, column=1, columnspan=2, padx=5, pady=5)
 btn_cerrar = tk.Button(ventana, text="Cerrar", command=ventana.quit)
-btn_cerrar.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
+btn_cerrar.grid(row=9, column=1, columnspan=2, padx=5, pady=5)
 
-# Botón para guardar en PDF
-btn_guardar_pdf = tk.Button(ventana, text="Guardar en PDF", command=lambda: guardar_datos_pdf(datos_pdf))
-btn_guardar_pdf.grid(row=10, column=0, columnspan=2, padx=5, pady=5)
 
 # Iniciar la ventana
 ventana.mainloop()
